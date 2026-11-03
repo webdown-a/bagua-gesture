@@ -1,0 +1,1215 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>羅經八卦</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000;
+    --ink: #ece7db;
+    --dim: rgba(236, 231, 219, .52);
+    --faint: rgba(236, 231, 219, .16);
+    --gold: #d9c48f;
+    --serif: "Noto Serif TC", "Songti TC", "STSong", "Noto Serif CJK TC", serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--bg); color: var(--ink); overflow: hidden; font-family: var(--serif); }
+  #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  #stage:active { cursor: grabbing; }
+
+  .brand { position: fixed; top: 32px; left: 36px; pointer-events: none; }
+  .brand h1 { font-weight: 900; font-size: 30px; letter-spacing: .42em; }
+  .brand p { margin-top: 10px; font-size: 13px; letter-spacing: .3em; color: var(--dim); }
+  .brand .seal { display: inline-block; margin-top: 14px; padding: 3px 7px; border: 1px solid var(--gold); color: var(--gold); font-size: 11px; letter-spacing: .2em; }
+
+  .guide { position: fixed; left: 36px; bottom: 32px; display: grid; gap: 10px; }
+  .guide .g { display: flex; align-items: center; gap: 12px; font-size: 13px; letter-spacing: .14em; color: var(--dim); transition: color .25s, transform .25s; }
+  .guide .g i { font-style: normal; width: 34px; height: 34px; display: grid; place-items: center; border: 1px solid var(--faint); border-radius: 50%; font-size: 17px; transition: border-color .25s, box-shadow .25s; }
+  .guide .g b { font-weight: 700; color: var(--ink); margin-right: 6px; }
+  .guide .g.on { color: var(--ink); transform: translateX(4px); }
+  .guide .g.on i { border-color: var(--gold); box-shadow: 0 0 18px rgba(217, 196, 143, .45); }
+
+  .cam { position: fixed; right: 32px; bottom: 32px; width: 224px; }
+  .cam .frame { position: relative; width: 224px; height: 168px; border: 1px solid var(--faint); overflow: hidden; background: #050505; }
+  .cam video, .cam canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scaleX(-1); }
+  .cam video { opacity: .38; filter: grayscale(1) contrast(1.1); }
+  .cam .status { margin-top: 8px; display: flex; justify-content: space-between; font-size: 12px; letter-spacing: .16em; color: var(--dim); }
+  .cam .status span:last-child { color: var(--gold); }
+
+  .meter { position: fixed; right: 36px; top: 168px; text-align: right; pointer-events: none; }
+  .meter .num { font-size: 40px; font-weight: 900; letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+  .meter .cap { font-size: 12px; letter-spacing: .3em; color: var(--dim); }
+  .meter .bar { margin: 10px 0 0 auto; width: 140px; height: 1px; background: var(--faint); position: relative; }
+  .meter .bar i { position: absolute; left: 0; top: -1px; height: 3px; background: var(--ink); width: 0; box-shadow: 0 0 10px rgba(255,255,255,.6); }
+
+  .labels { position: fixed; inset: 0; pointer-events: none; }
+  .lbl { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: 13px; letter-spacing: .22em; display: flex; align-items: center; gap: 10px; opacity: 0; will-change: transform, opacity; }
+  .lbl::before { content: ""; width: 46px; height: 1px; background: linear-gradient(90deg, rgba(255,255,255,.9), rgba(255,255,255,.15)); }
+  .lbl em { font-style: normal; color: var(--gold); font-size: 11px; }
+
+  #cursor { position: fixed; left: 0; top: 0; width: 38px; height: 38px; margin: -19px 0 0 -19px; border-radius: 50%; border: 1px solid rgba(255,255,255,.85); box-shadow: 0 0 16px rgba(255,255,255,.5), inset 0 0 10px rgba(255,255,255,.25); pointer-events: none; opacity: 0; transition: opacity .3s, width .2s, height .2s; }
+  #cursor::after { content: attr(data-g); position: absolute; left: 46px; top: 9px; font-size: 12px; letter-spacing: .2em; color: var(--ink); white-space: nowrap; }
+
+  .overlay { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 50%, rgba(0,0,0,.35), rgba(0,0,0,.9)); transition: opacity .6s; z-index: 5; }
+  .overlay.hide { opacity: 0; pointer-events: none; }
+  .panel { text-align: center; }
+  .panel h2 { font-size: 42px; font-weight: 900; letter-spacing: .5em; margin-right: -.5em; }
+  .panel p { margin-top: 16px; color: var(--dim); font-size: 14px; letter-spacing: .24em; line-height: 2; }
+  .panel .btns { margin-top: 34px; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+  .panel button { font-family: var(--serif); font-size: 15px; letter-spacing: .3em; padding: 12px 26px 12px 32px; background: transparent; color: var(--ink); border: 1px solid rgba(236,231,219,.5); cursor: pointer; transition: background .25s, color .25s, box-shadow .25s; }
+  .panel button:hover { background: var(--ink); color: #000; box-shadow: 0 0 24px rgba(255,255,255,.35); }
+  .panel button.ghost { border-color: var(--faint); color: var(--dim); }
+  .panel .msg { margin-top: 22px; min-height: 20px; font-size: 13px; color: var(--gold); letter-spacing: .18em; }
+
+  .labels, .meter, .cal { transition: opacity .5s; }
+  body.reading .labels, body.reading .meter, body.reading .cal { opacity: 0; }
+
+  .cal { position: fixed; right: 36px; top: 32px; text-align: right; pointer-events: none; }
+  .cal-d { display: flex; align-items: baseline; justify-content: flex-end; gap: 14px; font-size: 22px; font-weight: 900; letter-spacing: .12em; font-variant-numeric: tabular-nums; }
+  .cal-d b { font-size: 14px; font-weight: 700; color: var(--gold); letter-spacing: .3em; }
+  .cal-l { margin-top: 8px; font-size: 14px; letter-spacing: .3em; }
+  .cal-g { margin-top: 6px; font-size: 12px; letter-spacing: .32em; color: var(--dim); }
+  .cal-t { margin-top: 6px; font-size: 12px; letter-spacing: .2em; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .slip .when { white-space: pre-line; margin-top: 10px; font-size: 11px; line-height: 1.7; letter-spacing: .12em; color: var(--dim); }
+  .slip .formula { margin-top: 6px; font-size: 12px !important; line-height: 1.7 !important; color: var(--dim); letter-spacing: .04em !important; }
+
+  .slip { position: fixed; right: 36px; top: 50%; width: 380px; max-height: calc(100vh - 120px); overflow-y: auto; transform: translate(24px, -50%); opacity: 0; pointer-events: none; transition: opacity .6s, transform .6s cubic-bezier(.2,.8,.2,1); z-index: 3;
+    padding: 30px 30px 26px; background: linear-gradient(180deg, rgba(14,13,11,.86), rgba(6,6,5,.9)); border: 1px solid rgba(217,196,143,.35); box-shadow: 0 0 60px rgba(0,0,0,.8), inset 0 0 40px rgba(217,196,143,.05); backdrop-filter: blur(6px); scrollbar-width: none; }
+  .slip::-webkit-scrollbar { display: none; }
+  .slip.show { opacity: 1; transform: translate(0, -50%); pointer-events: auto; }
+  .slip .close { position: absolute; top: 12px; right: 14px; background: none; border: 0; color: var(--dim); font-size: 20px; cursor: pointer; font-family: var(--serif); }
+  .slip .close:hover { color: var(--ink); }
+  .slip .top { display: flex; justify-content: space-between; align-items: center; font-size: 12px; letter-spacing: .24em; color: var(--dim); }
+  .slip .rank { color: #000; background: var(--gold); padding: 3px 10px 3px 12px; font-weight: 900; letter-spacing: .3em; }
+  .slip .rank.low { background: transparent; color: var(--gold); border: 1px solid var(--gold); }
+  .slip .head { display: flex; align-items: center; gap: 22px; margin: 14px 0 10px; }
+  .slip .gua { display: grid; gap: 7px; width: 64px; flex: none; }
+  .slip .gua i { display: flex; justify-content: space-between; height: 8px; }
+  .slip .gua i::before, .slip .gua i::after { content: ""; background: var(--ink); height: 100%; width: 42%; box-shadow: 0 0 8px rgba(255,255,255,.35); }
+  .slip .gua i.yang::before { width: 100%; }
+  .slip .gua i.yang::after { display: none; }
+  .slip .gua i.move::before, .slip .gua i.move::after { background: var(--gold); box-shadow: 0 0 12px rgba(217,196,143,.8); }
+  .slip .name { font-size: 48px; font-weight: 900; line-height: 1; letter-spacing: .06em; }
+  .slip .full { margin-top: 8px; font-size: 13px; letter-spacing: .3em; color: var(--gold); }
+  .slip .sec { border-top: 1px solid var(--faint); padding: 10px 0; }
+  .slip .sec h4 { font-size: 11px; font-weight: 400; letter-spacing: .32em; color: var(--dim); margin-bottom: 7px; }
+  .slip .sec p { font-size: 14px; line-height: 1.75; letter-spacing: .06em; }
+  .slip .sec p.orig { font-weight: 700; }
+  .slip .sec p small { color: var(--dim); font-size: 13px; }
+  .slip .chg { display: flex; align-items: baseline; gap: 10px; }
+  .slip .chg b { font-size: 22px; font-weight: 900; color: var(--gold); }
+  .slip .plate { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; }
+  .slip .plate div { font-size: 11px; color: var(--dim); letter-spacing: .14em; }
+  .slip .plate div b { display: block; margin-top: 3px; font-size: 14px; color: var(--ink); font-weight: 700; letter-spacing: .1em; }
+  .slip .foot { margin-top: 6px; font-size: 11px; letter-spacing: .24em; color: var(--dim); text-align: center; }
+
+  .draw { position: fixed; left: 36px; top: 168px; font-family: var(--serif); font-size: 14px; letter-spacing: .4em; padding: 11px 22px 11px 28px; color: var(--ink); background: rgba(0,0,0,.4); border: 1px solid rgba(217,196,143,.5); cursor: pointer; transition: background .25s, color .25s, opacity .3s; z-index: 2; }
+  .draw:hover { background: var(--gold); color: #000; }
+  .draw:disabled { opacity: .35; cursor: default; background: rgba(0,0,0,.4); color: var(--ink); }
+  .phase { position: fixed; left: 36px; top: 226px; font-size: 12px; letter-spacing: .4em; color: var(--gold); opacity: 0; transition: opacity .4s; pointer-events: none; }
+  .phase.on { opacity: 1; }
+
+  @media (max-width: 760px) {
+    .slip { right: 12px; left: 12px; width: auto; top: auto; bottom: 12px; transform: translateY(24px); max-height: 62vh; padding: 22px 20px; }
+    .slip.show { transform: translateY(0); }
+    .slip .name { font-size: 40px; }
+    .draw { top: 118px; left: 18px; }
+    .phase { top: 170px; left: 18px; }
+    .brand { top: 18px; left: 18px; }
+    .brand h1 { font-size: 22px; }
+    .guide { left: 16px; bottom: 16px; gap: 6px; }
+    .guide .g { font-size: 11px; }
+    .guide .g i { width: 26px; height: 26px; font-size: 13px; }
+    .cam { right: 16px; bottom: 16px; width: 128px; }
+    .cam .frame { width: 128px; height: 96px; }
+    .meter { display: none; }
+    .cal { top: 18px; right: 18px; }
+    .cal-g, .cal-t { display: none; }
+    .meter .num { font-size: 28px; }
+    .lbl { font-size: 11px; }
+    .lbl::before { width: 22px; }
+    .panel h2 { font-size: 30px; }
+  }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<canvas id="stage"></canvas>
+
+<div class="brand">
+  <h1>羅經八卦</h1>
+  <p>以 手 勢 · 展 開 五 重 天 地</p>
+  <span class="seal">先天 · 後天</span>
+</div>
+
+<div class="cal" id="cal">
+  <div class="cal-d"><span id="calDate"></span><b id="calWeek"></b></div>
+  <div class="cal-l" id="calLunar"></div>
+  <div class="cal-g" id="calPillars"></div>
+  <div class="cal-t" id="calTime"></div>
+</div>
+
+<div class="meter">
+  <div class="num" id="layerNum">壹</div>
+  <div class="cap" id="layerCap">合 · 一 盤</div>
+  <div class="bar"><i id="bar"></i></div>
+</div>
+
+<div class="labels" id="labels"></div>
+
+<div class="guide" id="guide">
+  <div class="g" data-g="victory"><i>✌️</i><span><b>兩指上抬</b>展開層疊 · 越高越開</span></div>
+  <div class="g" data-g="fist"><i>✊</i><span><b>握拳</b>收合為一盤</span></div>
+  <div class="g" data-g="palm"><i>🖐</i><span><b>張掌揮動</b>轉盤求籤 · 手停盤定解卦</span></div>
+  <div class="g" data-g="point"><i>☝️</i><span><b>單指移動</b>環繞視角</span></div>
+</div>
+
+<div class="cam">
+  <div class="frame">
+    <video id="video" playsinline muted></video>
+    <canvas id="handCanvas" width="320" height="240"></canvas>
+  </div>
+  <div class="status"><span id="camState">攝像頭未開</span><span id="gState">—</span></div>
+</div>
+
+<div id="cursor" data-g=""></div>
+
+<div class="phase" id="phase">盤 轉 · 心 中 默 念 所 問 之 事</div>
+<button class="draw" id="drawBtn">求 籤</button>
+
+<aside class="slip" id="slip" aria-live="polite">
+  <button class="close" id="slipClose" aria-label="關閉">×</button>
+  <div class="top"><span id="sNo"></span><span class="rank" id="sRank"></span></div>
+  <div class="when" id="sWhen"></div>
+  <div class="head">
+    <div class="gua" id="sGua"></div>
+    <div><div class="name" id="sName"></div><div class="full" id="sFull"></div></div>
+  </div>
+  <div class="sec"><h4>卦 辭 · 象 曰</h4><p class="orig" id="sCi"></p><p id="sXiang" style="margin-top:4px"></p></div>
+  <div class="sec"><h4>解</h4><p id="sJie"></p></div>
+  <div class="sec"><h4>動 爻 · 之 卦</h4>
+    <p id="sYao"></p>
+    <p class="formula" id="sFormula"></p>
+    <p class="chg" style="margin-top:8px"><span style="color:var(--dim);font-size:13px">變而之</span><b id="sZhi"></b><small id="sZhiFull"></small></p>
+    <p><small id="sZhiJie"></small></p>
+  </div>
+  <div class="sec"><h4>盤 面</h4><div class="plate" id="sPlate"></div></div>
+</aside>
+
+<div class="overlay" id="overlay">
+  <div class="panel">
+    <h2>羅經八卦</h2>
+    <p>食指與中指並起，向上抬手，五重盤面自太極升起<br>心中默念所問之事，張掌揮動轉盤<br>手停盤定，天心針所指即得一卦</p>
+    <div class="btns">
+      <button id="startCam">開 啟 手 勢</button>
+      <button id="startMouse" class="ghost">滑 鼠 體 驗</button>
+    </div>
+    <div class="msg" id="msg">研墨中…</div>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+/* ------------------------------------------------------------------ data */
+const FONT = '"Noto Serif TC","Songti TC","STSong","Noto Serif CJK TC",serif';
+const PPU = 200; // texture pixels per world unit
+
+// 後天八卦: angle measured clockwise from top (top = 南)
+const TRIGRAMS = [
+  { n: '離', bits: [1,0,1], dir: '南',   wx: '火', deg: 0 },
+  { n: '坤', bits: [0,0,0], dir: '西南', wx: '土', deg: 45 },
+  { n: '兌', bits: [1,1,0], dir: '西',   wx: '金', deg: 90 },
+  { n: '乾', bits: [1,1,1], dir: '西北', wx: '金', deg: 135 },
+  { n: '坎', bits: [0,1,0], dir: '北',   wx: '水', deg: 180 },
+  { n: '艮', bits: [0,0,1], dir: '東北', wx: '土', deg: 225 },
+  { n: '震', bits: [1,0,0], dir: '東',   wx: '木', deg: 270 },
+  { n: '巽', bits: [0,1,1], dir: '東南', wx: '木', deg: 315 },
+];
+const MOUNTAINS = ['午','丁','未','坤','申','庚','酉','辛','戌','乾','亥','壬','子','癸','丑','艮','寅','甲','卯','乙','辰','巽','巳','丙'];
+const TERMS = ['夏至','小暑','大暑','立秋','處暑','白露','秋分','寒露','霜降','立冬','小雪','大雪','冬至','小寒','大寒','立春','雨水','驚蟄','春分','清明','穀雨','立夏','小滿','芒種'];
+const MANSIONS = ['角','亢','氐','房','心','尾','箕','斗','牛','女','虛','危','室','壁','奎','婁','胃','昴','畢','觜','參','井','鬼','柳','星','張','翼','軫'];
+const STEMS = '甲乙丙丁戊己庚辛壬癸', BRANCHES = '子丑寅卯辰巳午未申酉戌亥';
+// HEX[upper][lower], trigram code (bottom line = MSB): 坤0 艮1 坎2 巽3 震4 離5 兌6 乾7
+const HEX = [
+  ['坤','謙','師','升','復','明夷','臨','泰'],
+  ['剝','艮','蒙','蠱','頤','賁','損','大畜'],
+  ['比','蹇','坎','井','屯','既濟','節','需'],
+  ['觀','漸','渙','巽','益','家人','中孚','小畜'],
+  ['豫','小過','解','恆','震','豐','歸妹','大壯'],
+  ['晉','旅','未濟','鼎','噬嗑','離','睽','大有'],
+  ['萃','咸','困','大過','隨','革','兌','夬'],
+  ['否','遯','訟','姤','無妄','同人','履','乾'],
+];
+// 伏羲六十四卦圓圖: 乾 at top going left to 復, 姤 at top going right to 坤
+const HEX_RING = [];
+for (let j = 0; j < 32; j++) {
+  HEX_RING.push({ deg: (j + .5) * 5.625, v: 31 - j });
+  HEX_RING.push({ deg: 360 - (j + .5) * 5.625, v: 63 - j });
+}
+HEX_RING.forEach(h => {
+  h.name = HEX[h.v & 7][h.v >> 3];
+  h.bits = [0,1,2,3,4,5].map(k => (h.v >> (5 - k)) & 1);
+});
+
+const LAYERS = [
+  { rIn: 0,   rOut: 3.2,  lift: 1.75, title: '太極八卦', sub: '後天 · 方位五行' },
+  { rIn: 3.2, rOut: 4.9,  lift: 1.42, title: '宿度山向', sub: '廿八宿 · 廿四山' },
+  { rIn: 4.9, rOut: 6.4,  lift: 1.2,  title: '節氣甲子', sub: '廿四節 · 六十花甲' },
+  { rIn: 6.4, rOut: 8.6,  lift: 1.06, title: '六十四卦', sub: '伏羲圓圖' },
+  { rIn: 8.6, rOut: 10,   lift: 1.0,  title: '周天度數', sub: '三百六十度' },
+];
+const NUMS = ['壹','貳','叁','肆','伍'];
+
+// 周易六十四卦 · 文王序: [卦名, 籤等, 卦辭, 大象, 白話]
+const ZHOUYI = [
+  ['乾','上上','元亨利貞。','天行健，君子以自強不息。','剛健中正，大道通達。宜主動進取、自強不息；然亢龍有悔，盛時更須謙守。'],
+  ['坤','上吉','元亨，利牝馬之貞。君子有攸往，先迷後得主，利西南得朋，東北喪朋。安貞吉。','地勢坤，君子以厚德載物。','柔順承載，以靜制動。宜跟隨、輔佐，厚積而後發，不宜爭先。'],
+  ['屯','中平','元亨利貞，勿用有攸往，利建侯。','雲雷屯，君子以經綸。','萬物始生，艱難草創。宜立根基、求助貴人，不宜冒進。'],
+  ['蒙','中平','亨。匪我求童蒙，童蒙求我。初筮告，再三瀆，瀆則不告。利貞。','山下出泉，蒙；君子以果行育德。','蒙昧初開，當虛心求教。所問之事一問即可，反覆追問反失其誠。'],
+  ['需','中吉','有孚，光亨，貞吉。利涉大川。','雲上於天，需；君子以飲食宴樂。','雲已上天，雨尚未落。時機將至，宜耐心等待、養精蓄銳，切勿躁進。'],
+  ['訟','下','有孚，窒惕，中吉，終凶。利見大人，不利涉大川。','天與水違行，訟；君子以作事謀始。','意見相左，易生爭訟。宜退一步、求中調解，爭到底則凶。'],
+  ['師','中吉','貞，丈人吉，無咎。','地中有水，師；君子以容民畜眾。','興師動眾，須正道與老成者統領。紀律嚴明則可成事。'],
+  ['比','上吉','吉。原筮元永貞，無咎。不寧方來，後夫凶。','地上有水，比；先王以建萬國，親諸侯。','親近輔助，眾人歸附。宜及早結盟合作，遲疑者失機。'],
+  ['小畜','中平','亨。密雲不雨，自我西郊。','風行天上，小畜；君子以懿文德。','密雲未雨，力量小有積蓄而未足。宜修身蓄力，暫緩大舉。'],
+  ['履','中吉','履虎尾，不咥人，亨。','上天下澤，履；君子以辨上下，定民志。','如踩虎尾而未被咬。行事謹慎守禮，則險中可安。'],
+  ['泰','上上','小往大來，吉亨。','天地交，泰；后以財成天地之道，輔相天地之宜，以左右民。','天地相交，上下通達，諸事順遂。宜把握良機，亦防泰極否來。'],
+  ['否','下','否之匪人，不利君子貞，大往小來。','天地不交，否；君子以儉德辟難，不可榮以祿。','天地不交，閉塞不通。宜韜光養晦、守正待時，不宜強求。'],
+  ['同人','上吉','同人于野，亨。利涉大川，利君子貞。','天與火，同人；君子以類族辨物。','與人和同，志同道合。宜公開合作、廣結善緣，可成大事。'],
+  ['大有','上上','元亨。','火在天上，大有；君子以遏惡揚善，順天休命。','如日中天，所有豐盛。宜分享善用，戒驕戒奢。'],
+  ['謙','上吉','亨，君子有終。','地中有山，謙；君子以裒多益寡，稱物平施。','高山藏於地下。謙遜者終有所成，六爻皆吉之卦。'],
+  ['豫','中吉','利建侯行師。','雷出地奮，豫；先王以作樂崇德，殷薦之上帝，以配祖考。','雷出地奮，和樂順動。宜預先籌劃、順勢而行，勿耽於安逸。'],
+  ['隨','中吉','元亨利貞，無咎。','澤中有雷，隨；君子以嚮晦入宴息。','隨時而動，擇善而從。宜順應變化，亦要分辨所隨之人。'],
+  ['蠱','中平','元亨，利涉大川。先甲三日，後甲三日。','山下有風，蠱；君子以振民育德。','積弊已久，當整治革新。前後周詳謀劃，事可轉機。'],
+  ['臨','上吉','元亨利貞。至于八月有凶。','澤上有地，臨；君子以教思無窮，容保民無疆。','居高臨下，勢正漸長。宜積極行動，但盛中須防後衰。'],
+  ['觀','中平','盥而不薦，有孚顒若。','風行地上，觀；先王以省方，觀民設教。','觀察省思之時。先看清局勢、端正自身，再求作為。'],
+  ['噬嗑','中平','亨。利用獄。','雷電噬嗑；先王以明罰敕法。','口中有物，咬合方通。障礙當前，宜果斷明快地解決。'],
+  ['賁','中吉','亨。小利有攸往。','山下有火，賁；君子以明庶政，無敢折獄。','文飾之美。外在修飾有益，然重內質，小事可成。'],
+  ['剝','下','不利有攸往。','山附於地，剝；上以厚下安宅。','陰盛陽衰，層層剝落。宜守不宜進，靜待轉機。'],
+  ['復','上吉','亨。出入無疾，朋來無咎。反復其道，七日來復，利有攸往。','雷在地中，復；先王以至日閉關，商旅不行，后不省方。','一陽來復，否極泰來。事情開始好轉，宜重新出發。'],
+  ['無妄','中平','元亨利貞。其匪正有眚，不利有攸往。','天下雷行，物與無妄；先王以茂對時，育萬物。','真實無妄，順其自然。守正則吉，妄動則有災。'],
+  ['大畜','上吉','利貞，不家食吉，利涉大川。','天在山中，大畜；君子以多識前言往行，以畜其德。','大有積蓄，厚積薄發。宜進修學習，時至可擔大任。'],
+  ['頤','中吉','貞吉。觀頤，自求口實。','山下有雷，頤；君子以慎言語，節飲食。','頤養之道。慎言語、節飲食，養身養德，自食其力。'],
+  ['大過','中平','棟橈，利有攸往，亨。','澤滅木，大過；君子以獨立不懼，遯世無悶。','棟樑彎曲，負荷過重。非常之時須非常之舉，量力而行。'],
+  ['坎','下','習坎，有孚，維心亨，行有尚。','水洊至，習坎；君子以常德行，習教事。','重重險陷。保持誠信與恆心，如水流不息，方能出險。'],
+  ['離','中吉','利貞，亨。畜牝牛，吉。','明兩作，離；大人以繼明照于四方。','光明附麗。宜依附正道與良師，柔順而明，事可亨通。'],
+  ['咸','上吉','亨，利貞，取女吉。','山上有澤，咸；君子以虛受人。','兩心相感，感應自然。利於感情與人際，以虛心待人。'],
+  ['恆','中吉','亨，無咎，利貞，利有攸往。','雷風，恆；君子以立不易方。','恆久之道。堅守初心、持之以恆，則長久順遂。'],
+  ['遯','中平','亨，小利貞。','天下有山，遯；君子以遠小人，不惡而嚴。','退避之時。適時抽身、保存實力，退一步海闊天空。'],
+  ['大壯','中吉','利貞。','雷在天上，大壯；君子以非禮弗履。','聲勢壯盛。力量充足但忌恃強妄動，守正方為真壯。'],
+  ['晉','上吉','康侯用錫馬蕃庶，晝日三接。','明出地上，晉；君子以自昭明德。','旭日東昇，步步晉升。宜積極表現，前途光明。'],
+  ['明夷','下','利艱貞。','明入地中，明夷；君子以蒞眾，用晦而明。','光明受傷，處境艱難。宜韜光養晦、內明外柔。'],
+  ['家人','中吉','利女貞。','風自火出，家人；君子以言有物，而行有恆。','家道正則天下定。宜重家庭、守本分，言行一致。'],
+  ['睽','中平','小事吉。','上火下澤，睽；君子以同而異。','意見相違，人心乖離。求同存異，小事尚可。'],
+  ['蹇','下','利西南，不利東北；利見大人，貞吉。','山上有水，蹇；君子以反身修德。','前路艱阻。宜止步反省、尋求助力，不宜硬闖。'],
+  ['解','上吉','利西南，無所往，其來復吉。有攸往，夙吉。','雷雨作，解；君子以赦過宥罪。','雷雨交作，困難化解。宜及早行動，寬以待人。'],
+  ['損','中吉','有孚，元吉，無咎，可貞，利有攸往。曷之用？二簋可用享。','山下有澤，損；君子以懲忿窒欲。','減損之道。先捨後得，克制慾念，誠心則吉。'],
+  ['益','上上','利有攸往，利涉大川。','風雷，益；君子以見善則遷，有過則改。','損上益下，增益之時。宜積極行動、見善則遷。'],
+  ['夬','中平','揚于王庭，孚號，有厲。告自邑，不利即戎，利有攸往。','澤上於天，夬；君子以施祿及下，居德則忌。','決斷之時。宜公開果決地處理問題，但忌用強。'],
+  ['姤','中平','女壯，勿用取女。','天下有風，姤；后以施命誥四方。','不期而遇。邂逅之機可喜，但宜防微杜漸、慎擇所遇。'],
+  ['萃','上吉','亨。王假有廟，利見大人，亨，利貞。用大牲吉，利有攸往。','澤上於地，萃；君子以除戎器，戒不虞。','人才匯聚。宜團結眾力、共謀大事，並防意外。'],
+  ['升','上吉','元亨，用見大人，勿恤，南征吉。','地中生木，升；君子以順德，積小以高大。','如木生地中，步步高升。循序漸進，前景可期。'],
+  ['困','下','亨，貞，大人吉，無咎。有言不信。','澤無水，困；君子以致命遂志。','澤中無水，困頓之時。守志不移，少說多做，終能脫困。'],
+  ['井','中平','改邑不改井，無喪無得，往來井井。汔至，亦未繘井，羸其瓶，凶。','木上有水，井；君子以勞民勸相。','井養不窮。守住根本、持續修為，功虧一簣則凶。'],
+  ['革','中吉','己日乃孚，元亨利貞，悔亡。','澤中有火，革；君子以治曆明時。','變革之時。時機成熟方可改革，順天應人則成。'],
+  ['鼎','上吉','元吉，亨。','木上有火，鼎；君子以正位凝命。','鼎立新局。宜穩固地位、推陳出新，可成大業。'],
+  ['震','中平','亨。震來虩虩，笑言啞啞；震驚百里，不喪匕鬯。','洊雷，震；君子以恐懼修省。','雷聲驚動。突發之事雖驚，保持鎮定、自省修身，終能化險。'],
+  ['艮','中平','艮其背，不獲其身；行其庭，不見其人，無咎。','兼山，艮；君子以思不出其位。','當止則止。安守本位、靜觀其變，不宜妄動。'],
+  ['漸','上吉','女歸吉，利貞。','山上有木，漸；君子以居賢德善俗。','循序漸進。如鴻雁漸飛，不急不躁，終有所成。'],
+  ['歸妹','下','征凶，無攸利。','澤上有雷，歸妹；君子以永終知敝。','所歸不正，進則有凶。宜審慎名分，勿因情急而失序。'],
+  ['豐','中吉','亨，王假之。勿憂，宜日中。','雷電皆至，豐；君子以折獄致刑。','盛大豐滿，如日中天。把握當下，亦須知盛極將衰。'],
+  ['旅','中平','小亨，旅貞吉。','山上有火，旅；君子以明慎用刑，而不留獄。','羈旅在外。宜謙和謹慎，小事可成，勿久陷是非。'],
+  ['巽','中吉','小亨，利有攸往，利見大人。','隨風，巽；君子以申命行事。','如風入物，柔順而入。宜順勢謙遜、反覆申明，可漸得所求。'],
+  ['兌','上吉','亨，利貞。','麗澤，兌；君子以朋友講習。','喜悅和樂。宜與朋友切磋交流，以誠相悅則吉。'],
+  ['渙','中平','亨。王假有廟，利涉大川，利貞。','風行水上，渙；先王以享于帝立廟。','風行水上，渙散離析。宜凝聚人心、化解隔閡。'],
+  ['節','中吉','亨。苦節不可貞。','澤上有水，節；君子以制數度，議德行。','節制有度。適可而止則亨通，過度節制反成苦。'],
+  ['中孚','上吉','豚魚吉，利涉大川，利貞。','澤上有風，中孚；君子以議獄緩死。','誠信於中，感化及物。以誠待人，可渡難關。'],
+  ['小過','中平','亨，利貞。可小事，不可大事。飛鳥遺之音，不宜上宜下，大吉。','山上有雷，小過；君子以行過乎恭，喪過乎哀，用過乎儉。','小有過越。宜做小事、守低調，不宜好高騖遠。'],
+  ['既濟','中吉','亨小，利貞，初吉終亂。','水在火上，既濟；君子以思患而預防之。','事已成就。守成不易，宜居安思危、防患未然。'],
+  ['未濟','中平','亨。小狐汔濟，濡其尾，無攸利。','火在水上，未濟；君子以慎辨物居方。','事未完成，仍有希望。謹慎辨明方向，終可渡過。'],
+];
+const YI = {};
+ZHOUYI.forEach(([name, rank, ci, xiang, jie], k) => { YI[name] = { no: k + 1, rank, ci, xiang, jie }; });
+const TRI_NAME = ['坤','艮','坎','巽','震','離','兌','乾'];
+const NATURE = ['地','山','水','風','雷','火','澤','天'];
+const XIANTIAN = [8, 7, 6, 5, 4, 3, 2, 1]; // 先天數 by trigram code
+const YAO_POS = ['初爻','二爻','三爻','四爻','五爻','上爻'];
+const YAO_MEAN = [
+  '事之初始，宜潛藏蓄勢，謹慎起步。',
+  '居中得位，宜守中道，可得人相助。',
+  '下卦之極，進退之際多憂多懼，宜慎。',
+  '近尊之位，宜謹言慎行，審時度勢。',
+  '尊位得中，事之盛時，宜以德居之。',
+  '事之終極，物極必反，宜知止知退。',
+];
+const hexFull = v => {
+  const u = v & 7, l = v >> 3, name = HEX[u][l];
+  return { name, full: u === l ? `${TRI_NAME[u]}為${NATURE[u]}` : `${NATURE[u]}${NATURE[l]}${name}` };
+};
+
+/* --------------------------------------------------------- canvas drawing */
+const rad = d => d * Math.PI / 180;
+const pol = (r, deg) => [r * Math.sin(rad(deg)), -r * Math.cos(rad(deg))];
+
+function makeCanvas(R) {
+  const size = Math.ceil(R * 2 * PPU);
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  g.translate(size / 2, size / 2);
+  g.scale(PPU, PPU);
+  g.strokeStyle = g.fillStyle = '#fff';
+  g.lineCap = 'round';
+  return { c, g };
+}
+function circle(g, r, lw = .02, a = 1) {
+  g.globalAlpha = a; g.lineWidth = lw;
+  g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.stroke();
+  g.globalAlpha = 1;
+}
+function spokes(g, r1, r2, n, off = 0, lw = .016, a = .9) {
+  g.globalAlpha = a; g.lineWidth = lw; g.beginPath();
+  for (let i = 0; i < n; i++) {
+    const d = off + i * 360 / n;
+    g.moveTo(...pol(r1, d)); g.lineTo(...pol(r2, d));
+  }
+  g.stroke(); g.globalAlpha = 1;
+}
+function text(g, str, r, deg, size, { weight = 700, stack = false, alpha = 1, lh = 1.04 } = {}) {
+  g.save();
+  g.rotate(rad(deg)); g.translate(0, -r); g.scale(1 / PPU, 1 / PPU);
+  g.globalAlpha = alpha;
+  g.font = `${weight} ${size * PPU}px ${FONT}`;
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  const chars = [...str];
+  if (stack && chars.length > 1) {
+    chars.forEach((ch, k) => g.fillText(ch, 0, (k - (chars.length - 1) / 2) * size * lh * PPU));
+  } else g.fillText(str, 0, 0);
+  g.restore();
+}
+// yao lines stacked radially, bottom line innermost
+function yao(g, bits, r, deg, w, h, gap) {
+  g.save(); g.rotate(rad(deg)); g.translate(0, -r);
+  const n = bits.length;
+  bits.forEach((b, k) => {
+    const y = ((n - 1) / 2 - k) * (h + gap) - h / 2;
+    if (b) g.fillRect(-w / 2, y, w, h);
+    else { const s = w * .42; g.fillRect(-w / 2, y, s, h); g.fillRect(w / 2 - s, y, s, h); }
+  });
+  g.restore();
+}
+function ticks(g, r, n, len, lw, a = 1, skip) {
+  g.globalAlpha = a; g.lineWidth = lw; g.beginPath();
+  for (let i = 0; i < n; i++) {
+    if (skip && skip(i)) continue;
+    const d = i * 360 / n;
+    g.moveTo(...pol(r, d)); g.lineTo(...pol(r - len, d));
+  }
+  g.stroke(); g.globalAlpha = 1;
+}
+
+function drawLayer0() {
+  const { c, g } = makeCanvas(3.2);
+  circle(g, .98, .03); circle(g, 1.04, .012, .6);
+  ticks(g, 1.04, 64, .05, .01, .7);
+  circle(g, 1.68, .02); circle(g, 2.25, .02); circle(g, 2.74, .02);
+  circle(g, 3.12, .03); circle(g, 3.18, .012, .7);
+  spokes(g, 1.04, 3.12, 8, 22.5, .018);
+  ticks(g, 3.12, 120, .07, .008, .55);
+  TRIGRAMS.forEach(t => {
+    yao(g, t.bits, 1.36, t.deg, .58, .095, .075);
+    text(g, t.n, 1.97, t.deg, .38, { weight: 900 });
+    text(g, t.dir, 2.5, t.deg, t.dir.length > 1 ? .26 : .4, { weight: t.dir.length > 1 ? 400 : 900 });
+    text(g, t.wx, 2.93, t.deg, .27);
+  });
+  return c;
+}
+function drawLayer1() {
+  const { c, g } = makeCanvas(4.9);
+  circle(g, 3.24, .012, .7); circle(g, 3.88, .02); circle(g, 3.95, .012, .7);
+  circle(g, 4.8, .03); circle(g, 4.87, .012, .6);
+  const step = 360 / 28, base = 270 + 3 * step; // 房 centred at 東
+  MANSIONS.forEach((m, i) => text(g, m, 3.56, base - i * step, .28, { weight: 400 }));
+  spokes(g, 3.24, 3.88, 28, (base + step / 2) % step, .012, .7);
+  MOUNTAINS.forEach((m, i) => {
+    const d = i * 15, wei = '乾坤艮巽'.includes(m);
+    text(g, m, 4.38, d, .44, { weight: 900 });
+    if (wei) { g.save(); g.lineWidth = .016; g.beginPath(); g.arc(...pol(4.38, d), .3, 0, Math.PI * 2); g.stroke(); g.restore(); }
+  });
+  spokes(g, 3.95, 4.8, 24, 7.5, .016);
+  ticks(g, 4.8, 72, .06, .01, .6);
+  return c;
+}
+function drawLayer2() {
+  const { c, g } = makeCanvas(6.4);
+  circle(g, 4.95, .012, .7); circle(g, 5.58, .02); circle(g, 5.64, .012, .7);
+  circle(g, 6.3, .03); circle(g, 6.37, .012, .6);
+  TERMS.forEach((t, i) => text(g, t, 5.27, i * 15, .23, { weight: 400 }));
+  spokes(g, 4.95, 5.58, 24, 7.5, .014, .8);
+  for (let k = 0; k < 60; k++) {
+    const gz = STEMS[k % 10] + BRANCHES[k % 12];
+    text(g, gz, 5.97, 180 + k * 6, .2, { stack: true, weight: k % 10 === 0 ? 900 : 400, alpha: k % 10 === 0 ? 1 : .82 });
+  }
+  spokes(g, 5.64, 6.3, 60, 3, .01, .6);
+  return c;
+}
+function drawLayer3() {
+  const { c, g } = makeCanvas(8.6);
+  circle(g, 6.46, .012, .7); circle(g, 6.54, .02);
+  circle(g, 7.52, .02); circle(g, 7.58, .012, .6);
+  circle(g, 8.5, .03); circle(g, 8.57, .012, .6);
+  HEX_RING.forEach(h => {
+    yao(g, h.bits, 7.03, h.deg, .38, .062, .05);
+    text(g, h.name, 8.04, h.deg, h.name.length > 1 ? .25 : .3, { stack: true, weight: h.name.length > 1 ? 400 : 700 });
+  });
+  spokes(g, 6.54, 8.5, 64, 0, .01, .65);
+  return c;
+}
+function drawLayer4() {
+  const { c, g } = makeCanvas(10);
+  circle(g, 8.66, .012, .7); circle(g, 9.02, .02);
+  circle(g, 9.93, .03); circle(g, 9.99, .012, .6);
+  ticks(g, 9.02, 120, .3, .01, .6);
+  ticks(g, 9.93, 360, .12, .012, .9);
+  ticks(g, 9.93, 72, .22, .016);
+  ticks(g, 9.93, 36, .3, .02);
+  for (let d = 0; d < 360; d += 10) {
+    const deg = (d + 180) % 360, card = deg % 90 === 0;
+    text(g, String(deg), 9.43, d, card ? .36 : .26, { weight: card ? 900 : 400 });
+  }
+  // 120 分金 dots
+  for (let i = 0; i < 120; i++) {
+    g.globalAlpha = i % 5 === 0 ? .9 : .4;
+    g.beginPath(); g.arc(...pol(8.84, i * 3 + 1.5), i % 5 === 0 ? .05 : .03, 0, Math.PI * 2); g.fill();
+  }
+  g.globalAlpha = 1;
+  return c;
+}
+function drawTaiji() {
+  const s = 1024, c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d'), R = s * .47;
+  g.translate(s / 2, s / 2);
+  const disc = (x, y, r, col) => { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); };
+  disc(0, 0, R, '#000');
+  g.fillStyle = '#f4f1ea'; g.beginPath(); g.arc(0, 0, R, -Math.PI / 2, Math.PI / 2); g.fill();
+  disc(0, -R / 2, R / 2, '#000');
+  disc(0, R / 2, R / 2, '#f4f1ea');
+  disc(0, -R / 2, R / 7, '#f4f1ea');
+  disc(0, R / 2, R / 7, '#000');
+  g.strokeStyle = '#fff'; g.lineWidth = s * .012; g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2); g.stroke();
+  return c;
+}
+function drawGlass() {
+  const s = 1024, c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d'), R = s / 2 - 2;
+  g.translate(s / 2, s / 2);
+  const grd = g.createRadialGradient(0, 0, 0, 0, 0, R);
+  grd.addColorStop(0, 'rgba(255,255,255,.05)'); grd.addColorStop(1, 'rgba(255,255,255,.12)');
+  g.fillStyle = grd; g.beginPath(); g.arc(0, 0, R, 0, Math.PI * 2); g.fill();
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1.5;
+  [.3, .55, .8].forEach(f => { g.beginPath(); g.arc(0, 0, R * f, 0, Math.PI * 2); g.stroke(); });
+  g.strokeStyle = 'rgba(255,255,255,.22)';
+  for (let i = 0; i < 24; i++) {
+    const a = i / 24 * Math.PI * 2;
+    g.beginPath(); g.moveTo(Math.cos(a) * R * .3, Math.sin(a) * R * .3); g.lineTo(Math.cos(a) * R, Math.sin(a) * R); g.stroke();
+  }
+  return c;
+}
+function dotSprite() {
+  const s = 64, c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(s / 2, s / 2, 0, s / 2, s / 2, s / 2);
+  grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(.25, 'rgba(255,255,255,.8)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, s, s);
+  return c;
+}
+
+/* ------------------------------------------------------------------ scene */
+const canvas = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 1);
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x000000, .012);
+const camera = new THREE.PerspectiveCamera(40, 1, .1, 400);
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), .42, .28, .55);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+const maxAniso = renderer.capabilities.getMaxAnisotropy();
+const toTex = c => {
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = maxAniso;
+  t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+  return t;
+};
+const DOT = toTex(dotSprite());
+
+const N = LAYERS.length;
+const layers = [];
+const GOLD = 0xd9c48f;
+// snap grid per layer (texture degrees) and highlight band under the pointer
+const CELL = [
+  { step: 45,    off: 0,      hl: 45,    r1: 1.04, r2: 3.12 },
+  { step: 15,    off: 0,      hl: 15,    r1: 3.95, r2: 4.8 },
+  { step: 15,    off: 0,      hl: 15,    r1: 4.95, r2: 5.58 },
+  { step: 5.625, off: 2.8125, hl: 5.625, r1: 6.54, r2: 8.5 },
+  { step: 1,     off: 0,      hl: 1.4,   r1: 9.02, r2: 9.93 },
+];
+const lineMat = o => new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false });
+const pointMat = (size, o) => new THREE.PointsMaterial({ size, map: DOT, transparent: true, opacity: o, blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true });
+
+function buildScene() {
+  const drawers = [drawLayer0, drawLayer1, drawLayer2, drawLayer3, drawLayer4];
+  const glassTex = toTex(drawGlass());
+  LAYERS.forEach((L, i) => {
+    const group = new THREE.Group();
+    const spin = new THREE.Group(); // rotates; group handles lift/scale
+    group.add(spin);
+    const ring = new THREE.Mesh(
+      new THREE.PlaneGeometry(L.rOut * 2, L.rOut * 2).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: toTex(drawers[i]()), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    spin.add(ring);
+
+    let glass = null;
+    if (L.rIn > 0) {
+      glass = new THREE.Mesh(
+        new THREE.CircleGeometry(L.rIn, 96).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ map: glassTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      glass.position.y = -.002;
+      spin.add(glass);
+    }
+
+    // rim beads
+    const beads = [];
+    for (let k = 0; k < 24; k++) { const a = k / 24 * Math.PI * 2; beads.push(Math.sin(a) * L.rOut, 0, -Math.cos(a) * L.rOut); }
+    const rim = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(beads, 3)), pointMat(.22, .3));
+    spin.add(rim);
+
+    // vertical connectors down to the next layer
+    let conn = null;
+    if (i < N - 1) {
+      conn = new THREE.Group();
+      const seg = [], pts = [];
+      for (let k = 0; k < 12; k++) {
+        const a = (k + .5) / 12 * Math.PI * 2, x = Math.sin(a) * L.rOut, z = -Math.cos(a) * L.rOut;
+        seg.push(x, 0, z, x, -1, z);
+        pts.push(x, 0, z, x, -1, z);
+      }
+      conn.add(new THREE.LineSegments(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(seg, 3)), lineMat(0)));
+      conn.add(new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(pts, 3)), pointMat(.3, 0)));
+      spin.add(conn);
+    }
+
+    let taiji = null;
+    if (i === 0) {
+      taiji = new THREE.Mesh(
+        new THREE.CircleGeometry(.96, 96).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ map: toTex(drawTaiji()), transparent: true })
+      );
+      taiji.position.y = .01; taiji.renderOrder = 10;
+      group.add(taiji);
+    }
+
+    scene.add(group);
+
+    // world-fixed pointer (天心針): rim marker + highlight of the cell under it
+    const C = CELL[i];
+    const ptr = new THREE.Group();
+    const sector = new THREE.Mesh(
+      new THREE.RingGeometry(C.r1, C.r2, 24, 1, rad(90 - C.hl / 2), rad(C.hl)).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })
+    );
+    sector.position.y = .006;
+    const tri = new THREE.Mesh(
+      new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([0, 0, -(L.rOut + .05), -.2, 0, -(L.rOut + .42), .2, 0, -(L.rOut + .42)], 3)),
+      new THREE.MeshBasicMaterial({ color: GOLD, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })
+    );
+    ptr.add(sector, tri);
+    scene.add(ptr);
+
+    layers.push({ ...L, group, spin, ring, glass, rim, conn, taiji, ptr, sector, tri, s: 0, angle: 0, snapTo: 0, y: 0, sc: 1 });
+  });
+
+  const spine = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(new Array(N * 3).fill(0), 3)), new THREE.LineBasicMaterial({ color: GOLD, transparent: true, opacity: 0, depthWrite: false }));
+  scene.add(spine);
+  layers.spine = spine;
+
+  // central axis
+  const axis = new THREE.Line(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 0, 1, 0], 3)), lineMat(0));
+  scene.add(axis);
+  layers.axis = axis;
+
+  // star dust
+  const dust = [];
+  for (let k = 0; k < 1400; k++) {
+    const r = 110 + Math.random() * 120, th = Math.random() * Math.PI * 2, ph = Math.acos(Math.random() * 2 - 1);
+    dust.push(r * Math.sin(ph) * Math.cos(th), r * Math.cos(ph) * .6, r * Math.sin(ph) * Math.sin(th));
+  }
+  const stars = new THREE.Points(new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(dust, 3)), pointMat(.9, .5));
+  stars.material.fog = false;
+  scene.add(stars);
+  layers.stars = stars;
+}
+
+/* ------------------------------------------------------------------ labels */
+const labelBox = document.getElementById('labels');
+const labelEls = LAYERS.map((L, i) => {
+  const el = document.createElement('div');
+  el.className = 'lbl';
+  el.innerHTML = `<span>${NUMS[i]} · ${L.title}</span><em>${L.sub}</em>`;
+  labelBox.appendChild(el);
+  return el;
+});
+
+/* ------------------------------------------------------------------ state */
+const state = {
+  spreadTarget: 0,
+  rotVel: 0,
+  az: 0, azTarget: 0,
+  tilt: 0, tiltTarget: 0,
+  phase: 'idle', idle: 1, spinTime: 0, settleTime: 0, lastCell: -1,
+};
+const DIRS = [1, -1, 1, -1, 1];
+const MULT = [1.5, 1.15, .9, .7, .5];
+
+function resize() {
+  const w = innerWidth, h = innerHeight;
+  renderer.setSize(w, h, false);
+  composer.setSize(w, h);
+  bloom.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+
+const tmpV = new THREE.Vector3(), right = new THREE.Vector3();
+const ease = t => t * t * (3 - 2 * t);
+const GAP = 3.5;
+
+function update(dt, t) {
+  // per-layer spread with stagger (inner layers respond first)
+  layers.forEach((L, i) => {
+    const k = 3.4 - i * .42;
+    L.s += (state.spreadTarget - L.s) * (1 - Math.exp(-k * dt));
+  });
+  const sAvg = layers.reduce((a, L) => a + L.s, 0) / N;
+
+  // light friction while fast, firmer once slow so the dial still comes to rest promptly
+  state.rotVel *= Math.exp(-(Math.abs(state.rotVel) > 1.5 ? .9 : 2.2) * dt);
+  state.idle += ((state.phase === 'idle' ? 1 : 0) - state.idle) * (1 - Math.exp(-2 * dt));
+  driveFromHand(dt);
+  stepDivination(dt);
+  layers.forEach((L, i) => {
+    const e = ease(Math.min(1, Math.max(0, L.s)));
+    if (state.phase === 'settling') L.angle += (L.snapTo - L.angle) * (1 - Math.exp(-7 * dt));
+    else L.angle += (state.rotVel * MULT[i] + .045 * (.35 + sAvg) * state.idle) * DIRS[i] * dt;
+    L.ptr.position.y = L.y + .02;
+    L.ptr.scale.set(L.sc, 1, L.sc);
+    L.tri.material.opacity = i === N - 1 ? .95 : e * .95;
+    const hl = state.phase === 'result' ? .3 + .12 * Math.sin(t * 3 + i * .6) : 0;
+    L.sector.material.opacity += (hl - L.sector.material.opacity) * (1 - Math.exp(-5 * dt));
+    L.y = (N - 1 - i) * GAP * L.s;
+    L.sc = 1 + (L.lift - 1) * e;
+    L.group.position.y = L.y;
+    L.group.scale.set(L.sc, 1, L.sc);
+    L.spin.rotation.y = L.angle;
+    if (L.taiji) L.taiji.rotation.y = -t * .35;
+    if (L.glass) L.glass.material.opacity = .38 * e;
+    L.rim.material.opacity = .25 + .75 * e;
+    L.ring.material.opacity = .92 + .08 * Math.sin(t * 1.3 + i);
+  });
+  layers.forEach((L, i) => {
+    if (!L.conn) return;
+    const below = layers[i + 1];
+    const d = Math.max(.001, L.y - below.y);
+    L.conn.scale.y = d;
+    const o = ease(Math.min(1, Math.max(0, L.s)));
+    L.conn.children[0].material.opacity = .55 * o;
+    L.conn.children[1].material.opacity = .95 * o;
+  });
+  const sp = layers.spine.geometry.attributes.position;
+  layers.forEach((L, i) => sp.setXYZ(i, 0, L.y + .02, -(L.rOut + .42) * L.sc));
+  sp.needsUpdate = true;
+  layers.spine.material.opacity = .55 * ease(Math.min(1, sAvg));
+
+  const topY = layers[0].y;
+  layers.axis.scale.y = Math.max(.001, topY);
+  layers.axis.material.opacity = .6 * ease(Math.min(1, sAvg));
+  layers.stars.rotation.y += dt * .01;
+
+  // camera
+  state.az += (state.azTarget - state.az) * (1 - Math.exp(-3 * dt));
+  state.tilt += (state.tiltTarget - state.tilt) * (1 - Math.exp(-3 * dt));
+  const phi = Math.min(1.35, Math.max(.012, .012 + .88 * ease(Math.min(1, sAvg)) + state.tilt * sAvg));
+  const fov = rad(camera.fov / 2);
+  const fit = Math.max(10 / Math.tan(fov), 10 / (Math.tan(fov) * camera.aspect)) * 1.13;
+  const dist = fit * (1 + .12 * sAvg);
+  const ty = topY * .42;
+  camera.position.set(dist * Math.sin(phi) * Math.sin(state.az), ty + dist * Math.cos(phi), dist * Math.sin(phi) * Math.cos(state.az));
+  camera.lookAt(0, ty, 0);
+  camera.updateMatrixWorld();
+
+  // labels on the right rim of each plate
+  right.setFromMatrixColumn(camera.matrixWorld, 0).setY(0).normalize();
+  layers.forEach((L, i) => {
+    const o = Math.max(0, Math.min(1, (L.s - .25) / .5));
+    const el = labelEls[i];
+    if (o <= 0) { el.style.opacity = 0; return; }
+    tmpV.copy(right).multiplyScalar(L.rOut * L.sc).setY(L.y).project(camera);
+    const x = (tmpV.x * .5 + .5) * innerWidth + 10, y = (-tmpV.y * .5 + .5) * innerHeight;
+    el.style.opacity = o;
+    el.style.transform = `translate(${x.toFixed(1)}px, ${(y - 9).toFixed(1)}px)`;
+  });
+
+  // HUD
+  const open = 1 + layers.slice(0, N - 1).filter(L => L.s > .3).length;
+  document.getElementById('layerNum').textContent = NUMS[open - 1];
+  document.getElementById('layerCap').textContent = sAvg < .08 ? '合 · 一 盤' : sAvg > .85 ? '五 重 · 全 開' : '層 · 展 開 中';
+  document.getElementById('bar').style.width = `${(sAvg * 100).toFixed(1)}%`;
+}
+
+/* --------------------------------------------------------------- calendar */
+const WEEK = '日一二三四五六', QIYAO = '日月火水木金土';
+const LUNAR_MONTHS = ['正','二','三','四','五','六','七','八','九','十','冬','臘'];
+const lunarDayName = d => d === 10 ? '初十' : d === 20 ? '二十' : d === 30 ? '三十'
+  : ['初', '十', '廿'][Math.floor((d - 1) / 10)] + '一二三四五六七八九'[(d - 1) % 10];
+// 節 (month boundaries) as [month, approx day, branch index]
+const JIE = [[1, 6, 1], [2, 4, 2], [3, 6, 3], [4, 5, 4], [5, 6, 5], [6, 6, 6], [7, 7, 7], [8, 8, 8], [9, 8, 9], [10, 8, 10], [11, 7, 11], [12, 7, 0]];
+const gz = i => STEMS[i % 10] + BRANCHES[i % 12];
+let lunarFmt = null;
+try { lunarFmt = new Intl.DateTimeFormat('en-u-ca-chinese', { year: 'numeric', month: 'numeric', day: 'numeric' }); } catch {}
+
+function calendar(now = new Date()) {
+  const y = now.getFullYear(), m = now.getMonth() + 1, d = now.getDate(), h = now.getHours();
+  // 四柱 (year turns at 立春, month at each 節)
+  const gy = m < 2 || (m === 2 && d < 4) ? y - 1 : y;
+  const yearIdx = ((gy - 4) % 60 + 60) % 60;
+  let mb = 0; // before 小寒 → 子月
+  JIE.forEach(([jm, jd, b]) => { if (m > jm || (m === jm && d >= jd)) mb = b; });
+  const mOff = (mb - 2 + 12) % 12;
+  const monthStem = ([2, 4, 6, 8, 0][(yearIdx % 10) % 5] + mOff) % 10;
+  const jdn = Math.floor(Date.UTC(y, m - 1, d) / 864e5) + 2440588;
+  const dayIdx = ((jdn - 11) % 60 + 60) % 60; // 1949-10-01 = 甲子
+  const hourIdx = Math.floor(((h + 1) % 24) / 2);
+  const hourStem = ([0, 2, 4, 6, 8][(dayIdx % 10) % 5] + hourIdx) % 10;
+  const pillars = `${gz(yearIdx)}年 ${STEMS[monthStem]}${BRANCHES[mb]}月 ${gz(dayIdx)}日 ${STEMS[hourStem]}${BRANCHES[hourIdx]}時`;
+
+  // 農曆 via Intl chinese calendar; month like "9" or "6bis" (閏)
+  let lunarMonth = m, lunarDay = d, leap = false, yearBranch = yearIdx % 12, lunarYear = gz(yearIdx);
+  if (lunarFmt) {
+    const p = Object.fromEntries(lunarFmt.formatToParts(now).map(x => [x.type, x.value]));
+    lunarMonth = parseInt(p.month, 10); leap = /bis/.test(p.month); lunarDay = parseInt(p.day, 10);
+    const ry = parseInt(p.relatedYear || p.year, 10);
+    if (ry > 1000) { const li = ((ry - 4) % 60 + 60) % 60; yearBranch = li % 12; lunarYear = gz(li); }
+  }
+  const lunarMonthName = `${leap ? '閏' : ''}${LUNAR_MONTHS[lunarMonth - 1]}月`;
+  const pad = n => String(n).padStart(2, '0');
+  return {
+    solar: `${y}年${m}月${d}日`, dateDots: `${y} · ${pad(m)} · ${pad(d)}`,
+    time: `${pad(h)}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`,
+    week: WEEK[now.getDay()], qiyao: QIYAO[now.getDay()],
+    lunar: `${lunarYear}年 ${lunarMonthName}${lunarDayName(lunarDay)}`,
+    lunarMonth, lunarMonthName, lunarDay, lunarDayName: lunarDayName(lunarDay), yearBranch, hourIdx, pillars,
+  };
+}
+
+function renderClock() {
+  const c = calendar();
+  document.getElementById('calDate').textContent = c.dateDots;
+  document.getElementById('calWeek').textContent = `星期${c.week}`;
+  document.getElementById('calLunar').textContent = `農曆 ${c.lunar}`;
+  document.getElementById('calPillars').textContent = c.pillars;
+  document.getElementById('calTime').textContent = `${c.time} · ${BRANCHES[c.hourIdx]}時 · ${c.qiyao}曜`;
+}
+renderClock();
+setInterval(renderClock, 1000);
+
+/* ------------------------------------------------------------- divination */
+const SPIN_START = 1.2, SPIN_STOP = .12, MAX_SPIN = 12;
+const phaseEl = document.getElementById('phase'), drawBtn = document.getElementById('drawBtn'), slip = document.getElementById('slip');
+const norm = d => ((d % 360) + 360) % 360;
+const angDiff = (a, b) => Math.abs(((a - b + 540) % 360) - 180);
+const underPtr = L => norm(L.angle * 180 / Math.PI); // texture angle sitting under the fixed pointer
+
+function setPhase(p) {
+  state.phase = p;
+  phaseEl.textContent = p === 'settling' ? '盤 定 · 解 卦' : '盤 轉 · 心 中 默 念 所 問 之 事';
+  phaseEl.classList.toggle('on', p === 'spinning' || p === 'settling');
+  drawBtn.disabled = p === 'spinning' || p === 'settling';
+  document.body.classList.toggle('reading', p === 'result');
+  slip.classList.toggle('show', p === 'result');
+}
+
+function stepDivination(dt) {
+  const v = Math.abs(state.rotVel);
+  if ((state.phase === 'idle' || state.phase === 'result') && v > SPIN_START) {
+    state.spinTime = 0;
+    setPhase('spinning');
+  }
+  if (state.phase === 'spinning') {
+    state.spinTime += dt;
+    const cell = Math.floor(norm(underPtr(layers[3]) - CELL[3].off) / CELL[3].step);
+    if (cell !== state.lastCell) { state.lastCell = cell; tick(Math.min(.06, .015 + v * .012)); }
+    if (state.spinTime > .8 && v < SPIN_STOP && !drag) {
+      state.rotVel = 0;
+      layers.forEach((L, i) => {
+        const { step, off } = CELL[i], th = underPtr(L);
+        const c = off + Math.round((th - off) / step) * step;
+        L.snapTo = L.angle + rad(c - th);
+      });
+      state.settleTime = 0;
+      setPhase('settling');
+    }
+  } else if (state.phase === 'settling') {
+    state.rotVel = 0;
+    state.settleTime += dt;
+    if (state.settleTime > .9) {
+      layers.forEach(L => { L.angle = L.snapTo; });
+      showReading(readPlate());
+      setPhase('result');
+      bell();
+    }
+  }
+}
+
+function readPlate() {
+  const [t0, t1, t2, t3, t4] = layers.map(underPtr);
+  const tri = TRIGRAMS[Math.round(t0 / 45) % 8];
+  const mountain = MOUNTAINS[Math.round(t1 / 15) % 24];
+  const mStep = 360 / 28, mBase = 270 + 3 * mStep;
+  const mansion = MANSIONS[((Math.round((mBase - t1) / mStep) % 28) + 28) % 28];
+  const term = TERMS[Math.round(t2 / 15) % 24];
+  const gzK = ((Math.round((t2 - 180) / 6) % 60) + 60) % 60;
+  const ganzhi = STEMS[gzK % 10] + BRANCHES[gzK % 12];
+  const hex = HEX_RING.reduce((best, h) => angDiff(h.deg, t3) < angDiff(best.deg, t3) ? h : best);
+  const degree = (Math.round(t4) + 180) % 360;
+  // 梅花易數: 動爻 = (上卦先天數 + 下卦先天數 + 時辰數) mod 6
+  // 盤數 + 梅花年月日時: 動爻 = (上卦數 + 下卦數 + 年支數 + 農曆月 + 農曆日 + 時辰數) mod 6
+  const cal = calendar();
+  const u = hex.v & 7, l = hex.v >> 3;
+  const parts = [
+    [TRI_NAME[u], XIANTIAN[u]], [TRI_NAME[l], XIANTIAN[l]], [`${BRANCHES[cal.yearBranch]}年`, cal.yearBranch + 1],
+    [cal.lunarMonthName, cal.lunarMonth], [`${cal.lunarDayName}日`, cal.lunarDay], [`${BRANCHES[cal.hourIdx]}時`, cal.hourIdx + 1],
+  ];
+  const sum = parts.reduce((a, [, n]) => a + n, 0);
+  const moving = sum % 6 || 6;
+  const changed = hex.v ^ (1 << (6 - moving));
+  return { tri, mountain, mansion, term, ganzhi, degree, cal, parts, sum, v: hex.v, moving, changed };
+}
+
+function showReading(r) {
+  const ben = hexFull(r.v), zhi = hexFull(r.changed);
+  const y = YI[ben.name], yz = YI[zhi.name];
+  const $ = id => document.getElementById(id);
+  $('sNo').textContent = `周易 · 第 ${y.no} 卦`;
+  $('sRank').textContent = `${y.rank}籤`;
+  $('sRank').classList.toggle('low', y.rank === '下');
+  $('sName').textContent = ben.name;
+  $('sFull').textContent = ben.full;
+  $('sGua').innerHTML = [6, 5, 4, 3, 2, 1].map(k => {
+    const yang = (r.v >> (6 - k)) & 1;
+    return `<i class="${yang ? 'yang' : ''}${k === r.moving ? ' move' : ''}"></i>`;
+  }).join('');
+  $('sCi').textContent = y.ci;
+  $('sXiang').textContent = y.xiang;
+  $('sJie').textContent = y.jie;
+  const yang = (r.v >> (6 - r.moving)) & 1, nine = yang ? '九' : '六';
+  const yaoName = r.moving === 1 ? `初${nine}` : r.moving === 6 ? `上${nine}` : `${nine}${'二三四五'[r.moving - 2]}`;
+  $('sYao').innerHTML = `<b style="color:var(--gold)">${yaoName}</b> 動 · ${YAO_MEAN[r.moving - 1]}`;
+  $('sFormula').textContent = `起卦：${r.parts.map(([k, n]) => `${k}${n}`).join(' + ')} = ${r.sum}，${r.sum} ÷ 6 餘 ${r.sum % 6} → ${YAO_POS[r.moving - 1]}`;
+  $('sWhen').textContent = `${r.cal.solar} 星期${r.cal.week} · 農曆${r.cal.lunarMonthName}${r.cal.lunarDayName}\n${r.cal.pillars}`;
+  $('sZhi').textContent = zhi.name;
+  $('sZhiFull').textContent = `${zhi.full} · 第 ${yz.no} 卦`;
+  $('sZhiJie').textContent = `事之所趨：${yz.jie}`;
+  $('sPlate').innerHTML = [
+    ['方位', `${r.tri.dir}·${r.tri.n}`], ['山向', `${r.mountain}山`], ['星宿', `${r.mansion}宿`], ['周天', `${r.degree}°`],
+    ['節氣', r.term], ['干支', r.ganzhi],
+  ].map(([k, v]) => `<div>${k}<b>${v}</b></div>`).join('');
+  slip.scrollTop = 0;
+}
+
+function randomSpin() {
+  ensureAudio();
+  if (state.phase === 'spinning' || state.phase === 'settling') return;
+  state.rotVel = (Math.random() < .5 ? -1 : 1) * (7 + Math.random() * 4);
+}
+drawBtn.onclick = randomSpin;
+document.getElementById('slipClose').onclick = () => setPhase('idle');
+
+/* ------------------------------------------------------------------ audio */
+let actx = null;
+function ensureAudio() {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+  } catch {}
+}
+let lastTick = 0;
+function tick(gain) {
+  if (!actx || actx.currentTime - lastTick < .03) return;
+  const t = lastTick = actx.currentTime;
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(2100, t); o.frequency.exponentialRampToValueAtTime(700, t + .03);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(.0001, t + .05);
+  o.connect(g).connect(actx.destination); o.start(t); o.stop(t + .06);
+}
+function bell() {
+  if (!actx) return;
+  const t = actx.currentTime;
+  [[196, .14, 3.2], [196 * 2.76, .05, 2.2], [196 * 5.4, .025, 1.2], [196 * 1.5, .04, 2.6]].forEach(([f, a, d]) => {
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.value = f;
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(a, t + .01); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t + d + .05);
+  });
+}
+
+/* --------------------------------------------------------------- gestures */
+const video = document.getElementById('video');
+const hc = document.getElementById('handCanvas'), hg = hc.getContext('2d');
+const cursor = document.getElementById('cursor');
+const guideEls = [...document.querySelectorAll('#guide .g')];
+const camState = document.getElementById('camState'), gState = document.getElementById('gState');
+const G_NAME = { victory: '展開', fist: '收合', palm: '轉盤', point: '環視', none: '—' };
+const BONES = [[0,1],[1,2],[2,3],[3,4],[0,5],[5,6],[6,7],[7,8],[5,9],[9,10],[10,11],[11,12],[9,13],[13,14],[14,15],[15,16],[13,17],[17,18],[18,19],[19,20],[0,17]];
+
+let landmarker = null, lastVideoT = -1;
+const hand = {
+  present: false, seen: 0, raw: 'none', stable: 'none', count: 0, filters: null,
+  palmX: null, palmT: 0, vel: 0, // palm horizontal speed, screen widths per second
+  tx: 0, ty: 0, cx: 0, cy: 0, cursorG: '',
+};
+const PALM_GAIN = 7.5, PALM_DEAD = .12, LOST_GRACE = 350;
+
+// One Euro filter: heavy smoothing when still, low lag when moving fast
+function oneEuro(minCutoff = 1.4, beta = 9, dCutoff = 1) {
+  let x0 = null, dx0 = 0, t0 = 0;
+  const alpha = (fc, dt) => 1 / (1 + 1 / (2 * Math.PI * fc * dt));
+  return (x, t) => {
+    if (x0 === null) { x0 = x; t0 = t; return x; }
+    const dt = Math.max(1e-3, t - t0); t0 = t;
+    dx0 += alpha(dCutoff, dt) * ((x - x0) / dt - dx0);
+    x0 += alpha(minCutoff + beta * Math.abs(dx0), dt) * (x - x0);
+    return x0;
+  };
+}
+const makeFilters = () => Array.from({ length: 21 }, () => [oneEuro(), oneEuro(), oneEuro()]);
+
+function classify(lm) {
+  const ar = video.videoWidth / video.videoHeight || 4 / 3;
+  const d = (a, b) => Math.hypot((lm[a].x - lm[b].x) * ar, lm[a].y - lm[b].y, (lm[a].z - lm[b].z) * ar);
+  const ext = (tip, pip, mcp) => d(tip, 0) > d(pip, 0) * 1.1 && d(tip, 0) > d(mcp, 0) * 1.35;
+  const I = ext(8, 6, 5), M = ext(12, 10, 9), R = ext(16, 14, 13), P = ext(20, 18, 17);
+  if (I && M && !R && !P) return lm[8].y < lm[0].y && lm[12].y < lm[0].y ? 'victory' : 'none';
+  if (I && !M && !R && !P) return 'point';
+  if (I && M && R && P) return 'palm';
+  if (!I && !M && !R && !P) return 'fist';
+  return 'none';
+}
+
+function applyGesture(g, lm) {
+  if (g === 'victory') {
+    const tipY = (lm[8].y + lm[12].y) / 2;
+    const h = Math.min(1, Math.max(0, (.78 - tipY) / .55));
+    state.spreadTarget = .42 + .58 * h;
+  } else if (g === 'fist') {
+    state.spreadTarget = 0; state.azTarget = 0; state.tiltTarget = 0;
+  } else if (g === 'point') {
+    state.azTarget = (1 - lm[8].x - .5) * 2.6;
+    state.tiltTarget = (lm[8].y - .5) * .9;
+  }
+}
+
+// called every render frame: the palm drags the dial; once the hand slows, the dial coasts on its own
+function driveFromHand(dt) {
+  if (hand.present && hand.stable === 'palm') {
+    const target = Math.abs(hand.vel) < PALM_DEAD ? 0 : Math.max(-MAX_SPIN, Math.min(MAX_SPIN, hand.vel * PALM_GAIN));
+    const pushing = target !== 0 && (Math.sign(target) !== Math.sign(state.rotVel) || Math.abs(target) > Math.abs(state.rotVel));
+    if (pushing) state.rotVel += (target - state.rotVel) * (1 - Math.exp(-10 * dt));
+  }
+  // cursor glides at render rate instead of jumping at camera rate
+  if (hand.present) {
+    const k = 1 - Math.exp(-22 * dt);
+    hand.cx += (hand.tx - hand.cx) * k; hand.cy += (hand.ty - hand.cy) * k;
+    cursor.style.transform = `translate(${hand.cx.toFixed(1)}px, ${hand.cy.toFixed(1)}px)`;
+  }
+}
+
+function setGestureUI(g, present) {
+  cursor.style.opacity = present ? 1 : 0;
+  if (g === hand.cursorG) return;
+  hand.cursorG = g;
+  guideEls.forEach(el => el.classList.toggle('on', el.dataset.g === g));
+  gState.textContent = G_NAME[g] || '—';
+  cursor.dataset.g = g === 'none' ? '' : G_NAME[g];
+  const big = g === 'victory' ? 52 : g === 'fist' ? 24 : 38;
+  cursor.style.width = cursor.style.height = `${big}px`;
+  cursor.style.margin = `-${big / 2}px 0 0 -${big / 2}px`;
+}
+
+function drawHand(lm, g) {
+  hg.clearRect(0, 0, hc.width, hc.height);
+  if (!lm) return;
+  hg.strokeStyle = g === 'none' ? 'rgba(255,255,255,.5)' : '#d9c48f';
+  hg.lineWidth = 2;
+  hg.beginPath();
+  BONES.forEach(([a, b]) => { hg.moveTo(lm[a].x * hc.width, lm[a].y * hc.height); hg.lineTo(lm[b].x * hc.width, lm[b].y * hc.height); });
+  hg.stroke();
+  hg.fillStyle = '#fff';
+  lm.forEach((p, k) => { hg.beginPath(); hg.arc(p.x * hc.width, p.y * hc.height, k === 8 || k === 12 ? 4 : 2.4, 0, Math.PI * 2); hg.fill(); });
+}
+
+function detect() {
+  if (!landmarker || video.readyState < 2 || video.currentTime === lastVideoT) return;
+  lastVideoT = video.currentTime;
+  const now = performance.now();
+  const res = landmarker.detectForVideo(video, now);
+  const raw = res.landmarks && res.landmarks[0];
+  if (!raw) {
+    // brief dropouts (motion blur mid-swipe) keep the current gesture alive
+    if (hand.present && now - hand.seen > LOST_GRACE) {
+      Object.assign(hand, { present: false, raw: 'none', stable: 'none', count: 0, filters: null, palmX: null, vel: 0 });
+      setGestureUI('none', false); drawHand(null);
+    }
+    return;
+  }
+  const t = now / 1000;
+  if (!hand.filters) hand.filters = makeFilters();
+  const lm = raw.map((p, k) => ({ x: hand.filters[k][0](p.x, t), y: hand.filters[k][1](p.y, t), z: hand.filters[k][2](p.z, t) }));
+  if (!hand.present) { hand.cx = hand.tx = (1 - lm[8].x) * innerWidth; hand.cy = hand.ty = lm[8].y * innerHeight; }
+  hand.present = true; hand.seen = now;
+
+  // hysteresis: real gestures switch after 3 frames, an ambiguous pose must persist 7 frames
+  const g = classify(lm);
+  if (g === hand.raw) hand.count++; else { hand.raw = g; hand.count = 1; }
+  if (hand.count >= (g === 'none' ? 7 : 3)) hand.stable = g;
+
+  if (hand.stable === 'palm') {
+    const px = 1 - lm[9].x;
+    if (hand.palmX != null) {
+      const v = (px - hand.palmX) / Math.max(.008, t - hand.palmT);
+      hand.vel += (v - hand.vel) * .55;
+    }
+    hand.palmX = px; hand.palmT = t;
+  } else { hand.palmX = null; hand.vel = 0; }
+
+  applyGesture(hand.stable, lm);
+  hand.tx = (1 - lm[8].x) * innerWidth; hand.ty = lm[8].y * innerHeight;
+  setGestureUI(hand.stable, true);
+  drawHand(lm, hand.stable);
+}
+
+async function startCamera() {
+  const msg = document.getElementById('msg');
+  msg.textContent = '開啟攝像頭…';
+  const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false });
+  video.srcObject = stream;
+  await video.play();
+  camState.textContent = '載入手勢模型…';
+  msg.textContent = '載入手勢模型…';
+  const VER = '0.10.14';
+  const vision = await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VER}/vision_bundle.mjs`);
+  const fileset = await vision.FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VER}/wasm`);
+  const models = ['./hand_landmarker.task', 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task'];
+  let lastErr;
+  for (const modelAssetPath of models) {
+    for (const delegate of ['GPU', 'CPU']) {
+      try {
+        landmarker = await vision.HandLandmarker.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath, delegate }, runningMode: 'VIDEO', numHands: 1,
+          minHandDetectionConfidence: .6, minHandPresenceConfidence: .6, minTrackingConfidence: .5,
+        });
+        camState.textContent = '手勢就緒';
+        return;
+      } catch (e) { lastErr = e; }
+    }
+  }
+  throw lastErr;
+}
+
+/* ------------------------------------------------------------ mouse/keys */
+let drag = null;
+canvas.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', e => {
+  if (!drag) return;
+  state.rotVel = Math.max(-MAX_SPIN, Math.min(MAX_SPIN, state.rotVel + (e.clientX - drag.x) * .028));
+  state.tiltTarget = Math.max(-.5, Math.min(.4, state.tiltTarget + (e.clientY - drag.y) * .003));
+  drag = { x: e.clientX, y: e.clientY };
+});
+addEventListener('pointerup', () => { drag = null; });
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  state.spreadTarget = Math.max(0, Math.min(1, state.spreadTarget - e.deltaY * .0012));
+}, { passive: false });
+canvas.addEventListener('dblclick', () => { state.spreadTarget = state.spreadTarget > .5 ? 0 : 1; });
+addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); state.spreadTarget = state.spreadTarget > .5 ? 0 : 1; }
+  if (e.key === 'ArrowLeft') state.rotVel -= 2.5;
+  if (e.key === 'ArrowRight') state.rotVel += 2.5;
+});
+
+/* ------------------------------------------------------------------- boot */
+const overlay = document.getElementById('overlay');
+async function boot() {
+  const all = [TRIGRAMS.map(t => t.n + t.dir + t.wx).join(''), MOUNTAINS.join(''), TERMS.join(''), MANSIONS.join(''), STEMS, BRANCHES,
+    HEX.flat().join(''), '0123456789', '羅經八卦以手勢展開五重天地先天後天合一盤層全中壹貳叁肆伍'].join('');
+  try {
+    await Promise.race([document.fonts.load(`700 40px "Noto Serif TC"`, all).then(() => document.fonts.load(`900 40px "Noto Serif TC"`, all)), new Promise(r => setTimeout(r, 4500))]);
+    await Promise.race([document.fonts.load(`400 40px "Noto Serif TC"`, all), new Promise(r => setTimeout(r, 1500))]);
+  } catch {}
+  buildScene();
+  resize();
+  document.getElementById('msg').textContent = '';
+  let last = performance.now();
+  renderer.setAnimationLoop(now => {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    detect();
+    update(dt, now / 1000);
+    composer.render();
+  });
+}
+boot();
+
+document.getElementById('startCam').onclick = async () => {
+  ensureAudio();
+  try {
+    await startCamera();
+    overlay.classList.add('hide');
+  } catch (e) {
+    console.error(e);
+    document.getElementById('msg').textContent = '攝像頭或模型不可用：' + (e.message || e) + ' · 可改用滑鼠體驗';
+    camState.textContent = '不可用';
+  }
+};
+document.getElementById('startMouse').onclick = () => {
+  ensureAudio();
+  overlay.classList.add('hide');
+  camState.textContent = '滑鼠模式';
+  document.querySelector('.cam').style.display = 'none';
+  guideEls.forEach((el, k) => {
+    el.querySelector('span').innerHTML = ['<b>滾輪</b>展開 / 收合 · 空白鍵切換', '<b>雙擊</b>一鍵開合', '<b>左右甩動</b>轉盤求籤 · 鬆手盤定解卦', '<b>上下拖曳</b>調整俯仰'][k];
+  });
+};
+</script>
+</body>
+</html>
